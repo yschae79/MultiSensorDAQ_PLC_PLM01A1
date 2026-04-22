@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stm32_plm01a1.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,9 +56,9 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern UART_HandleTypeDef huart1;
 /* USER CODE BEGIN EV */
-
+extern UART_HandleTypeDef pUartPlmHandle;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -197,6 +198,71 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
+
+/**
+  * @brief This function handles EXTI line 1 interrupt.
+  */
+void EXTI1_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI1_IRQn 0 */
+
+  /* USER CODE END EXTI1_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(PLM_PL_RX_ON_Pin);
+  /* USER CODE BEGIN EXTI1_IRQn 1 */
+
+  /* USER CODE END EXTI1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART1 global interrupt.
+  */
+void USART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART1_IRQn 0 */
+  UART_HandleTypeDef *huart = &pUartPlmHandle;
+  uint32_t tmp1, tmp2;
+
+  /* UART 패리티 에러 클리어 */
+  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_PE))
+  {
+    __HAL_UART_CLEAR_PEFLAG(huart);
+  }
+  /* UART 프레임 에러 클리어 */
+  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_FE))
+  {
+    __HAL_UART_CLEAR_FEFLAG(huart);
+  }
+  /* UART 노이즈 에러 클리어 */
+  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_NE))
+  {
+    __HAL_UART_CLEAR_NEFLAG(huart);
+  }
+  /* UART 오버런 에러 클리어 */
+  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE))
+  {
+    __HAL_UART_CLEAR_OREFLAG(huart);
+  }
+
+  tmp1 = __HAL_UART_GET_FLAG(huart, UART_FLAG_RXNE);
+  tmp2 = __HAL_UART_GET_IT_SOURCE(huart, UART_IT_RXNE);
+  /* RXNE: ST7580 수신 데이터 처리 */
+  if ((tmp1 != RESET) && (tmp2 != RESET))
+  {
+    NucleoST7580RxInt(huart);
+  }
+
+  tmp1 = __HAL_UART_GET_FLAG(huart, UART_FLAG_TXE);
+  tmp2 = __HAL_UART_GET_IT_SOURCE(huart, UART_IT_TXE);
+  /* TXE: ST7580 송신 데이터 처리 */
+  if ((tmp1 != RESET) && (tmp2 != RESET))
+  {
+    NucleoST7580TxInt(huart);
+  }
+  /* USER CODE END USART1_IRQn 0 */
+  /* USER CODE BEGIN USART1_IRQn 1 */
+
+  /* USER CODE END USART1_IRQn 1 */
+}
 
 /* USER CODE BEGIN 1 */
 
