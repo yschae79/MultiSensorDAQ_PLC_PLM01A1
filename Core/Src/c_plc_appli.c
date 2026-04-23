@@ -28,6 +28,9 @@
 /** @brief P2P 상태 머신 현재 상태 */
 static SM_State_t SM_State;
 
+/** @brief PLC 신뢰성 테스트 통계 */
+static PLC_Stats_t s_stats;
+
 /** @brief 디버그 UART 출력 버퍼 */
 static char MsgOut[100];
 
@@ -43,7 +46,12 @@ static void AppliSlaveBoard(void);
  * @retval None
  */
 void P2P_Init(void)
-{
+{    /* 통계 초기화 */
+    s_stats.tx_count        = 0u;
+    s_stats.rx_success      = 0u;
+    s_stats.rx_fail_timeout = 0u;
+    s_stats.rx_fail_wrong   = 0u;
+    s_stats.per             = 0.0f;
     /* 모뎀 MIB 설정 쓰기 */
     BSP_PLM_Mib_Write(MIB_MODEM_CONF, modem_config, sizeof(modem_config));
     HAL_Delay(500);
@@ -84,6 +92,20 @@ void P2P_Process(void)
         default:
             break;
     }
+}
+
+/**
+ * @brief  PLC 통신 통계 반환
+ * @retval 통계 구조체 포인터 (read-only)
+ */
+const PLC_Stats_t *P2P_GetStats(void)
+{
+    return &s_stats;
+}
+
+SM_State_t P2P_GetRole(void)
+{
+    return SM_State;
 }
 
 /* Private functions ---------------------------------------------------------*/
@@ -267,12 +289,16 @@ static void AppliSlaveBoard(void)
         sprintf(MsgOut, "\n\r");
         HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
 
-        /* 수신된 TRIGGER ID를 ACK에 복사 후 전송 (성공할 때까지 재시도) */
+        /* 수신된 TRIGGER ID를 ACK에 복사 후 전송 (최대 5회 재시도) */
         aTrsBuffer[ACK_BUF_SIZE - 1] = aRcvBuffer[TRIG_BUF_SIZE - 1];
-        do
         {
-            ret = BSP_PLM_Send_Data(DATA_OPT, aTrsBuffer, ACK_BUF_SIZE, NULL);
-        } while (ret != 0);
+            int retry;
+            for (retry = 0; retry < 5; retry++)
+            {
+                ret = BSP_PLM_Send_Data(DATA_OPT, aTrsBuffer, ACK_BUF_SIZE, NULL);
+                if (ret == 0) { break; }
+            }
+        }
 
         sprintf(MsgOut, "ACK Msg Sent, ID: %c\n\r", aTrsBuffer[ACK_BUF_SIZE - 1]);
         HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);

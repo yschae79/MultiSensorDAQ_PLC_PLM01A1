@@ -46,6 +46,12 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # 애플리케이션 소스
     Core/Src/c_plc_appli.c
+    # 비동기 DMA 디버그 출력 (UART2 VCP)
+    Core/Src/c_debug.c
+    # ILI9341 LCD 드라이버 (SPI2 + DMA)
+    Core/Src/c_lcd_ili9341.c
+    # LCD 폰트
+    Core/Src/c_font.c
     # BSP: X-NUCLEO-PLM01A1
     Drivers/BSP/X-NUCLEO-PLM01A1/stm32_plm01a1.c
     # BSP: STM32F4xx Nucleo (LED/버튼 추상화)
