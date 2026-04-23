@@ -19,6 +19,8 @@ mx.scratch
 .project
 .settings/
 !.settings/language.settings.xml
+!.settings/bundles.store.json
+!.settings/bundles-lock.store.json
 
 # ── 컴파일러/링커 중간 파일 ────────────────────────────────────────────
 *.o

@@ -1,0 +1,27 @@
+# ── 기본 정책: 텍스트 파일은 저장소에 LF로 보관, 체크아웃 시 OS 줄 끝 사용
+* text=auto
+
+# ── 소스 코드: 항상 LF
+*.c     text eol=lf
+*.h     text eol=lf
+*.s     text eol=lf
+*.S     text eol=lf
+*.ld    text eol=lf
+*.cmake text eol=lf
+*.md    text eol=lf
+*.ioc   text eol=lf
+
+# ── JSON / YAML: LF 고정 (ST Build Tool 등 IDE 생성 파일 포함)
+*.json  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+
+# ── 바이너리: 변환 없음
+*.a     binary
+*.o     binary
+*.elf   binary
+*.bin   binary
+*.hex   binary
+*.png   binary
+*.jpg   binary
+*.gif   binary
