@@ -72,23 +72,23 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   /* 비동기 DMA 디버그 출력 초기화 — 커널 시작 후 여기서 호출해야 tx_mutex_create()가 정상 동작 */
   Debug_Init();
 
-  /* PLC 태스크 생성 (우선순위 3, 1KB 스택) */
-  ret = tx_byte_allocate(byte_pool, &p_stack, 1024u, TX_NO_WAIT);
-  if (ret != TX_SUCCESS) { return ret; }
+  /* PLC 태스크 생성 (우선순위 3, 2KB 스택) — UART 콜백/상태머신 중첩 호출로 1KB 부족 */
+  ret = tx_byte_allocate(byte_pool, &p_stack, 2048u, TX_NO_WAIT);
+  if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
   static TX_THREAD s_plcTask;
   ret = tx_thread_create(&s_plcTask, "PLC Task", PLC_Task_Entry, 0u,
-                         p_stack, 1024u,
+                         p_stack, 2048u,
                          3u, 3u, TX_NO_TIME_SLICE, TX_AUTO_START);
-  if (ret != TX_SUCCESS) { return ret; }
+  if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
 
   /* LCD 태스크 생성 (우선순위 5, 2KB 스택) */
   ret = tx_byte_allocate(byte_pool, &p_stack, 2048u, TX_NO_WAIT);
-  if (ret != TX_SUCCESS) { return ret; }
+  if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
   static TX_THREAD s_lcdTask;
   ret = tx_thread_create(&s_lcdTask, "LCD Task", LCD_Task_Entry, 0u,
                          p_stack, 2048u,
                          5u, 5u, TX_NO_TIME_SLICE, TX_AUTO_START);
-  if (ret != TX_SUCCESS) { return ret; }
+  if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
 
   /* USER CODE END App_ThreadX_Init */
 
@@ -176,8 +176,8 @@ static void LCD_Task_Entry(ULONG argument)
         LCD_DrawString(4u, 4u, "PLC RELIABILITY", LCD_CYAN, LCD_BLACK);
 
         LCD_SetFont(&Font_8x16);
-        LCD_DrawString(4u, 34u, "MODE   :", LCD_WHITE, LCD_BLACK);
-        LCD_DrawString(4u, 50u, "PAYLOAD:", LCD_WHITE, LCD_BLACK);
+        LCD_DrawString(4u, 34u, "MODE   : P2P",    LCD_WHITE, LCD_BLACK);
+        LCD_DrawString(4u, 50u, "PAYLOAD: 21 B",   LCD_WHITE, LCD_BLACK);
         LCD_DrawString(4u,  72u, "-------------------", LCD_GRAY, LCD_BLACK);
         LCD_DrawString(4u,  88u, "TX  :", LCD_WHITE, LCD_BLACK);
         LCD_DrawString(4u, 104u, "OK  :", LCD_GREEN, LCD_BLACK);

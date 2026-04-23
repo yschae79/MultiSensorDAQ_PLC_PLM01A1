@@ -26,7 +26,6 @@
 #include "stm32_plm01a1.h"
 #include "c_debug.h"
 #include "c_lcd_ili9341.h"
-#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +49,7 @@ DMA_HandleTypeDef hdma_spi2_tx;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 
@@ -105,7 +105,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  printf("GPIO_PLM_Configuration started\n");
+
   /* ST7580 GPIO 초기화 (T_REQ, RESETN, PL_TX_ON, PL_RX_ON) */
   GPIO_PLM_Configuration();
   /* ST7580 UART1 초기화 (57600 baud, RXNE 인터럽트 활성화) */
@@ -114,8 +114,10 @@ int main(void)
   BSP_PLM_Init();
   /* USER 버튼(PC13) 초기화 (GPIO Input 모드) */
   BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
-  /* 디버그 UART2 초기화 (115200 baud) */
-  USART_PRINT_MSG_Configuration();
+  /* USART_PRINT_MSG_Configuration() 제거:
+   * pUartMsgHandle 초기화 시 __HAL_LINKDMA가 hdma_usart2_tx.Parent를
+   * &pUartMsgHandle로 덮어써 DMA 완료 콜백이 Debug_TxCpltHandler()에
+   * 도달하지 못하는 문제 발생. printf → DMA 경로만 사용하므로 불필요. */
   /* P2P 애플리케이션 초기화 (MIB 설정, MASTER/SLAVE 역할 결정) */
   P2P_Init();
   /* Debug_Init()은 ThreadX 커널 시작 후 App_ThreadX_Init()에서 호출됩니다.
@@ -303,6 +305,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Stream4_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
 }
 

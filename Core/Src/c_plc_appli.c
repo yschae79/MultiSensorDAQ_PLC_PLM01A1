@@ -17,6 +17,7 @@
 #include <string.h>
 #include "c_plc_appli.h"
 #include "stm32_plm01a1.h"
+#include "tx_api.h"
 
 /* Private defines -----------------------------------------------------------*/
 /** @brief TRIGGER 메시지 페이로드 크기 (바이트) */
@@ -31,8 +32,7 @@ static SM_State_t SM_State;
 /** @brief PLC 신뢰성 테스트 통계 */
 static PLC_Stats_t s_stats;
 
-/** @brief 디버그 UART 출력 버퍼 */
-static char MsgOut[100];
+
 
 /* Private function prototypes -----------------------------------------------*/
 static void AppliMasterBoard(void);
@@ -130,8 +130,7 @@ static void AppliMasterBoard(void)
     };
     uint8_t aRcvBuffer[ACK_BUF_SIZE];
 
-    sprintf(MsgOut, "P2P Communication Test - Master Board Side\n\r\n\r");
-    HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+    printf("P2P Communication Test - Master Board Side\r\n\r\n");
 
     while (1)
     {
@@ -142,26 +141,22 @@ static void AppliMasterBoard(void)
             aTrsBuffer[TRIG_BUF_SIZE - 1] = 'A';
         }
 
-        sprintf(MsgOut, "Iteration %d\n\r", ++it);
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+        printf("Iteration %d\r\n", ++it);
 
         /* TRIGGER 메시지 전송 */
         ret = BSP_PLM_Send_Data(DATA_OPT, aTrsBuffer, TRIG_BUF_SIZE, NULL);
 
         if (ret)
         {
-            sprintf(MsgOut, "Trigger Transmission Err\n\r");
-            HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+            printf("Trigger Transmission Err\r\n");
             continue;
         }
 
-        sprintf(MsgOut, "Trigger Msg Sent, ID: %c\n\r", aTrsBuffer[TRIG_BUF_SIZE - 1]);
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
-        sprintf(MsgOut, "PAYLOAD: ");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
-        HAL_UART_Transmit(&pUartMsgHandle, aTrsBuffer, TRIG_BUF_SIZE, 500);
-        sprintf(MsgOut, "\n\r");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+        /* TX 카운트 증가 */
+        s_stats.tx_count++;
+
+        printf("Trigger Msg Sent, ID: %c\r\n", aTrsBuffer[TRIG_BUF_SIZE - 1]);
+        printf("PAYLOAD: %.*s\r\n", TRIG_BUF_SIZE, (char *)aTrsBuffer);
 
         /* ACK 수신 대기 (최대 10회 폴링, 200ms 간격) */
         RxFrame = NULL;
@@ -182,49 +177,52 @@ static void AppliMasterBoard(void)
                     break;
                 }
             }
-            HAL_Delay(200);
+            tx_thread_sleep(200);
         }
 
         /* ACK 수신 결과 확인 */
         if (RxFrame == NULL)
         {
-            sprintf(MsgOut, "ACK Timeout - No ACK Received\n\r");
-            HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+            s_stats.rx_fail_timeout++;
+            if (s_stats.tx_count > 0u) {
+                s_stats.per = (float)(s_stats.rx_fail_timeout + s_stats.rx_fail_wrong)
+                              / (float)s_stats.tx_count * 100.0f;
+            }
+            printf("ACK Timeout - No ACK Received\r\n");
             continue;
         }
 
         cRxLen = (RxFrame->length - 4);
 
-        sprintf(MsgOut, "ACK Msg Received\n\r");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+        printf("ACK Msg Received\r\n");
 
         if (cRxLen != ACK_BUF_SIZE)
         {
-            sprintf(MsgOut, "Wrong ACK Length\n\r");
-            HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+            printf("Wrong ACK Length\r\n");
             continue;
         }
 
         /* 페이로드 추출 */
         memcpy(aRcvBuffer, &(RxFrame->data[4]), cRxLen);
 
-        /* ID 검증 */
+        /* ID 검증 및 통계 업데이트 */
         if (aRcvBuffer[ACK_BUF_SIZE - 1] == aTrsBuffer[TRIG_BUF_SIZE - 1])
         {
-            sprintf(MsgOut, "ACK Msg Received, ID: %c\n\r", aRcvBuffer[ACK_BUF_SIZE - 1]);
+            s_stats.rx_success++;
+            printf("ACK Msg Received, ID: %c\r\n", aRcvBuffer[ACK_BUF_SIZE - 1]);
         }
         else
         {
-            sprintf(MsgOut, "WRONG ACK Msg Received, ID: %c\n\r", aRcvBuffer[ACK_BUF_SIZE - 1]);
+            s_stats.rx_fail_wrong++;
+            printf("WRONG ACK Msg Received, ID: %c\r\n", aRcvBuffer[ACK_BUF_SIZE - 1]);
         }
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
-        sprintf(MsgOut, "PAYLOAD: ");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
-        HAL_UART_Transmit(&pUartMsgHandle, aRcvBuffer, ACK_BUF_SIZE, 500);
-        sprintf(MsgOut, "\n\r\n\r");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+        if (s_stats.tx_count > 0u) {
+            s_stats.per = (float)(s_stats.rx_fail_timeout + s_stats.rx_fail_wrong)
+                          / (float)s_stats.tx_count * 100.0f;
+        }
+        printf("PAYLOAD: %.*s\r\n\r\n", ACK_BUF_SIZE, (char *)aRcvBuffer);
 
-        HAL_Delay(1000);
+        tx_thread_sleep(1000);
     }
 }
 
@@ -247,13 +245,11 @@ static void AppliSlaveBoard(void)
     };
     uint8_t aRcvBuffer[TRIG_BUF_SIZE];
 
-    sprintf(MsgOut, "P2P Communication Test - Slave Board Side\n\r\n\r");
-    HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+    printf("P2P Communication Test - Slave Board Side\r\n\r\n");
 
     while (1)
     {
-        sprintf(MsgOut, "Iteration %d\n\r", ++it);
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+        printf("Iteration %d\r\n", ++it);
 
         /* TRIGGER 메시지 수신 대기 */
         RxFrame = NULL;
@@ -274,20 +270,15 @@ static void AppliSlaveBoard(void)
                     break;
                 }
             }
-            HAL_Delay(200);
+            tx_thread_sleep(200);
         } while (RxFrame == NULL);
 
         /* 페이로드 추출 */
         cRxLen = (RxFrame->length - 4);
         memcpy(aRcvBuffer, &(RxFrame->data[4]), cRxLen);
 
-        sprintf(MsgOut, "Trigger Msg Received, ID: %c\n\r", aRcvBuffer[TRIG_BUF_SIZE - 1]);
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
-        sprintf(MsgOut, "PAYLOAD: ");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
-        HAL_UART_Transmit(&pUartMsgHandle, aRcvBuffer, TRIG_BUF_SIZE, 500);
-        sprintf(MsgOut, "\n\r");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+        printf("Trigger Msg Received, ID: %c\r\n", aRcvBuffer[TRIG_BUF_SIZE - 1]);
+        printf("PAYLOAD: %.*s\r\n", TRIG_BUF_SIZE, (char *)aRcvBuffer);
 
         /* 수신된 TRIGGER ID를 ACK에 복사 후 전송 (최대 5회 재시도) */
         aTrsBuffer[ACK_BUF_SIZE - 1] = aRcvBuffer[TRIG_BUF_SIZE - 1];
@@ -300,12 +291,7 @@ static void AppliSlaveBoard(void)
             }
         }
 
-        sprintf(MsgOut, "ACK Msg Sent, ID: %c\n\r", aTrsBuffer[ACK_BUF_SIZE - 1]);
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
-        sprintf(MsgOut, "PAYLOAD: ");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
-        HAL_UART_Transmit(&pUartMsgHandle, aTrsBuffer, ACK_BUF_SIZE, 500);
-        sprintf(MsgOut, "\n\r\n\r");
-        HAL_UART_Transmit(&pUartMsgHandle, (uint8_t *)MsgOut, strlen(MsgOut), 500);
+        printf("ACK Msg Sent, ID: %c\r\n", aTrsBuffer[ACK_BUF_SIZE - 1]);
+        printf("PAYLOAD: %.*s\r\n\r\n", ACK_BUF_SIZE, (char *)aTrsBuffer);
     }
 }

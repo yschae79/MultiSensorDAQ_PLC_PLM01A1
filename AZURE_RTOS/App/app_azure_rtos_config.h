@@ -40,10 +40,9 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* define the size of static threadX byte memory pools */
-#define TX_APP_MEM_POOL_SIZE                     1024
-
 /* USER CODE BEGIN EC */
-
+/* PLC(2048) + LCD(2048) + DisplayTask(s_displayStack) + 오버헤드 여유 */
+#define TX_APP_MEM_POOL_SIZE                     8192
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
