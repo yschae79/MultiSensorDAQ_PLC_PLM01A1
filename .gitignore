@@ -1,3 +1,35 @@
-build
+# ── 빌드 출력물 ──────────────────────────────────────────────────────────
+build/
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# ── STM32CubeMX 임시 파일 ──────────────────────────────────────────────
 mx.scratch
-!.settings
+.mxproject
+
+# ── IDE / 편집기 ──────────────────────────────────────────────────────
+# VS Code — 개인 설정(launch.json)만 제외, 공용 설정은 추적
+.vscode/launch.json
+
+# Eclipse / STM32CubeIDE
+.cproject
+.project
+.settings/
+!.settings/language.settings.xml
+
+# ── 컴파일러/링커 중간 파일 ────────────────────────────────────────────
+*.o
+*.d
+*.su
+*.a
+
+# ── OS 메타데이터 ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 샘플·스크래치 코드 (프로젝트 소스 아님) ──────────────────────────
+sample/
