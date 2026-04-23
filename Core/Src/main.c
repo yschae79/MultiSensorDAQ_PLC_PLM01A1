@@ -26,6 +26,7 @@
 #include "stm32_plm01a1.h"
 #include "c_debug.h"
 #include "c_lcd_ili9341.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -104,6 +105,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
+  printf("GPIO_PLM_Configuration started\n");
   /* ST7580 GPIO 초기화 (T_REQ, RESETN, PL_TX_ON, PL_RX_ON) */
   GPIO_PLM_Configuration();
   /* ST7580 UART1 초기화 (57600 baud, RXNE 인터럽트 활성화) */
@@ -114,10 +116,11 @@ int main(void)
   BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
   /* 디버그 UART2 초기화 (115200 baud) */
   USART_PRINT_MSG_Configuration();
-  /* 비동기 DMA 디버그 출력 초기화 (UART2 VCP) */
-  Debug_Init();
   /* P2P 애플리케이션 초기화 (MIB 설정, MASTER/SLAVE 역할 결정) */
   P2P_Init();
+  /* Debug_Init()은 ThreadX 커널 시작 후 App_ThreadX_Init()에서 호출됩니다.
+   * tx_kernel_enter() 이전에 호출 시 tx_mutex_create()가 커널 초기화로 인해
+   * 무효화되어 _write()/_printf()에서 태스크가 무한 블록됩니다. */
   /* USER CODE END 2 */
 
   MX_ThreadX_Init();

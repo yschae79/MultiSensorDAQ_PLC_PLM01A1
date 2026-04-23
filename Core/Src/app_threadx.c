@@ -26,6 +26,7 @@
 #include "c_plc_appli.h"
 #include "c_lcd_ili9341.h"
 #include "c_font.h"
+#include "c_debug.h"
 #include <stdio.h>
 /* USER CODE END Includes */
 
@@ -67,6 +68,9 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
 
   /* USER CODE BEGIN App_ThreadX_Init */
   VOID *p_stack;
+
+  /* 비동기 DMA 디버그 출력 초기화 — 커널 시작 후 여기서 호출해야 tx_mutex_create()가 정상 동작 */
+  Debug_Init();
 
   /* PLC 태스크 생성 (우선순위 3, 1KB 스택) */
   ret = tx_byte_allocate(byte_pool, &p_stack, 1024u, TX_NO_WAIT);
