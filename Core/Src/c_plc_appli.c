@@ -51,7 +51,19 @@ void P2P_Init(void)
     s_stats.rx_success      = 0u;
     s_stats.rx_fail_timeout = 0u;
     s_stats.rx_fail_wrong   = 0u;
+    s_stats.rx_stale        = 0u;
+    s_stats.last_tx_id      = '-';
+    s_stats.last_rx_id      = '-';
+    s_stats.uart_pe         = 0u;
+    s_stats.uart_fe         = 0u;
+    s_stats.uart_ne         = 0u;
+    s_stats.uart_oe         = 0u;
+    s_stats.last_ack_latency_ms = 0u;
     s_stats.per             = 0.0f;
+    /* DWT 사이클 카운터 활성화 (ACK RTT 측정용) */
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT       = 0u;
+    DWT->CTRL        |= DWT_CTRL_CYCCNTENA_Msk;
     /* 모뎀 MIB 설정 쓰기 */
     BSP_PLM_Mib_Write(MIB_MODEM_CONF, modem_config, sizeof(modem_config));
     HAL_Delay(500);
@@ -108,6 +120,14 @@ SM_State_t P2P_GetRole(void)
     return SM_State;
 }
 
+void P2P_UART1_ErrorInc(uint8_t pe, uint8_t fe, uint8_t ne, uint8_t oe)
+{
+    s_stats.uart_pe += pe;
+    s_stats.uart_fe += fe;
+    s_stats.uart_ne += ne;
+    s_stats.uart_oe += oe;
+}
+
 /* Private functions ---------------------------------------------------------*/
 
 /**
@@ -120,6 +140,8 @@ static void AppliMasterBoard(void)
     uint8_t cRxLen;
     ST7580Frame *RxFrame;
     uint8_t lastIDRcv = 0;
+    uint8_t prev_tx_id;             /* 직전 iteration 전송 ID (Stale 판별용) */
+    uint32_t t_send_cyc = 0u;       /* TRIGGER 전송 시점 DWT 사이클 (RTT 측정용) */
     int it = 0;
 
     /* TRIGGER 메시지 버퍼: 마지막 바이트가 순환 ID('@' 이후 A~Z) */
@@ -134,16 +156,21 @@ static void AppliMasterBoard(void)
 
     while (1)
     {
+        /* 증가 전 이전 ID 저장 (Stale 판별: prev_tx_id == recv_id → 이전 ACK 지연 도착) */
+        prev_tx_id = aTrsBuffer[TRIG_BUF_SIZE - 1];
+
         /* ID 바이트 순환 증가 (A ~ Z) */
         aTrsBuffer[TRIG_BUF_SIZE - 1]++;
         if (aTrsBuffer[TRIG_BUF_SIZE - 1] > 'Z')
         {
             aTrsBuffer[TRIG_BUF_SIZE - 1] = 'A';
         }
+        s_stats.last_tx_id = aTrsBuffer[TRIG_BUF_SIZE - 1];
 
         printf("Iteration %d\r\n", ++it);
 
         /* TRIGGER 메시지 전송 */
+        t_send_cyc = DWT->CYCCNT;   /* RTT 측정 시작 */
         ret = BSP_PLM_Send_Data(DATA_OPT, aTrsBuffer, TRIG_BUF_SIZE, NULL);
 
         if (ret)
@@ -158,9 +185,9 @@ static void AppliMasterBoard(void)
         printf("Trigger Msg Sent, ID: %c\r\n", aTrsBuffer[TRIG_BUF_SIZE - 1]);
         printf("PAYLOAD: %.*s\r\n", TRIG_BUF_SIZE, (char *)aTrsBuffer);
 
-        /* ACK 수신 대기 (최대 10회 폴링, 200ms 간격) */
+        /* ACK 수신 대기 (최대 ACK_POLL_COUNT회 폴링, ACK_POLL_INTERVAL_MS 간격) */
         RxFrame = NULL;
-        for (int j = 0; (j < 10) && (RxFrame == NULL); j++)
+        for (int j = 0; (j < (int)ACK_POLL_COUNT) && (RxFrame == NULL); j++)
         {
             RxFrame = BSP_PLM_Receive_Frame();
             if (RxFrame != NULL)
@@ -173,11 +200,27 @@ static void AppliMasterBoard(void)
                 }
                 else
                 {
-                    lastIDRcv = RxFrame->data[3 + ACK_BUF_SIZE];
-                    break;
+                    uint8_t recv_id = RxFrame->data[3 + ACK_BUF_SIZE];
+                    if (recv_id == prev_tx_id)
+                    {
+                        /* Stale ACK: 이전 iteration ACK가 지연 도착 → 폐기 후 계속 폴링 */
+                        s_stats.rx_stale++;
+                        printf("Stale ACK, ID=%c (expect %c)\r\n",
+                               recv_id, aTrsBuffer[TRIG_BUF_SIZE - 1]);
+                        lastIDRcv = recv_id;
+                        RxFrame = NULL;
+                    }
+                    else
+                    {
+                        lastIDRcv = recv_id;
+                        /* RTT 측정: TRIGGER 전송 ~ 유효 ACK 수신 */
+                        s_stats.last_ack_latency_ms =
+                            (DWT->CYCCNT - t_send_cyc) / (SystemCoreClock / 1000u);
+                        break;
+                    }
                 }
             }
-            tx_thread_sleep(200);
+            tx_thread_sleep(ACK_POLL_INTERVAL_MS);
         }
 
         /* ACK 수신 결과 확인 */
@@ -204,6 +247,7 @@ static void AppliMasterBoard(void)
 
         /* 페이로드 추출 */
         memcpy(aRcvBuffer, &(RxFrame->data[4]), cRxLen);
+        s_stats.last_rx_id = aRcvBuffer[ACK_BUF_SIZE - 1];
 
         /* ID 검증 및 통계 업데이트 */
         if (aRcvBuffer[ACK_BUF_SIZE - 1] == aTrsBuffer[TRIG_BUF_SIZE - 1])
@@ -213,6 +257,7 @@ static void AppliMasterBoard(void)
         }
         else
         {
+            /* 진짜 ERR: Stale 아님 + ID 불일치 (CRC 통과한 데이터 오염 등) */
             s_stats.rx_fail_wrong++;
             printf("WRONG ACK Msg Received, ID: %c\r\n", aRcvBuffer[ACK_BUF_SIZE - 1]);
         }
@@ -276,12 +321,16 @@ static void AppliSlaveBoard(void)
         /* 페이로드 추출 */
         cRxLen = (RxFrame->length - 4);
         memcpy(aRcvBuffer, &(RxFrame->data[4]), cRxLen);
+        s_stats.last_rx_id = aRcvBuffer[TRIG_BUF_SIZE - 1];
+        s_stats.rx_success++;   /* SLAVE: TRIGGER 수신 횟수 */
 
         printf("Trigger Msg Received, ID: %c\r\n", aRcvBuffer[TRIG_BUF_SIZE - 1]);
         printf("PAYLOAD: %.*s\r\n", TRIG_BUF_SIZE, (char *)aRcvBuffer);
 
         /* 수신된 TRIGGER ID를 ACK에 복사 후 전송 (최대 5회 재시도) */
         aTrsBuffer[ACK_BUF_SIZE - 1] = aRcvBuffer[TRIG_BUF_SIZE - 1];
+        s_stats.last_tx_id = aTrsBuffer[ACK_BUF_SIZE - 1];
+        s_stats.tx_count++; /* SLAVE: ACK 전송 횟수 */
         {
             int retry;
             for (retry = 0; retry < 5; retry++)

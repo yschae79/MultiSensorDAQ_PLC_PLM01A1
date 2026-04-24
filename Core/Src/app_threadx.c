@@ -135,7 +135,7 @@ static void PLC_Task_Entry(ULONG argument)
 static void LCD_Task_Entry(ULONG argument)
 {
     (void)argument;
-    char buf[40];
+    char buf[48];
 
     printf("[APP] LCD_Task started\n");
     LCD_Init();
@@ -155,17 +155,25 @@ static void LCD_Task_Entry(ULONG argument)
         LCD_DrawString(4u, 4u, "PLC SLAVE", LCD_YELLOW, LCD_BLACK);
 
         LCD_SetFont(&Font_8x16);
-        LCD_DrawString(4u, 40u, "Waiting for TRIGGER", LCD_WHITE, LCD_BLACK);
-        LCD_DrawString(4u, 60u, "from MASTER...",      LCD_GRAY,  LCD_BLACK);
-        LCD_DrawString(4u, 90u, "RX  :    0",          LCD_GREEN, LCD_BLACK);
+        LCD_DrawString(4u, 40u, "RX(-):    0 / TX(-):    0", LCD_GREEN,  LCD_BLACK);
+        LCD_DrawString(4u, 58u, "Waiting for TRIGGER...",   LCD_GRAY,   LCD_BLACK);
+        LCD_DrawString(4u, 90u, "--- UART1 Errors --------", LCD_GRAY,   LCD_BLACK);
+        LCD_DrawString(4u, 108u, "PE:    0/FE:    0/NE:    0/ORE:    0", LCD_CYAN, LCD_BLACK);
 
-        uint32_t rx_cnt = 0u;
         for (;;)
         {
-            /* SLAVE 수신 횟수: tx_count를 수신 카운터로 재활용 (P2P_Init에서 0으로 초기화) */
-            /* AppliSlaveBoard에서 수신 카운터를 별도 제공하지 않으므로 폴링 방식으로 표시 */
-            snprintf(buf, sizeof(buf), "RX  : %4lu", (unsigned long)rx_cnt);
-            LCD_DrawString(4u, 90u, buf, LCD_GREEN, LCD_BLACK);
+            const PLC_Stats_t *s = P2P_GetStats();
+
+            snprintf(buf, sizeof(buf), "RX(%c):%5lu / TX(%c):%5lu",
+                     s->last_rx_id, (unsigned long)s->rx_success,
+                     s->last_tx_id, (unsigned long)s->tx_count);
+            LCD_DrawString(4u, 40u, buf, LCD_GREEN, LCD_BLACK);
+
+            snprintf(buf, sizeof(buf), "PE:%4lu/FE:%4lu/NE:%4lu/ORE:%4lu",
+                     (unsigned long)s->uart_pe, (unsigned long)s->uart_fe,
+                     (unsigned long)s->uart_ne, (unsigned long)s->uart_oe);
+            LCD_DrawString(4u, 108u, buf, LCD_CYAN, LCD_BLACK);
+
             tx_thread_sleep(500u);
         }
     }
@@ -176,36 +184,51 @@ static void LCD_Task_Entry(ULONG argument)
         LCD_DrawString(4u, 4u, "PLC RELIABILITY", LCD_CYAN, LCD_BLACK);
 
         LCD_SetFont(&Font_8x16);
-        LCD_DrawString(4u, 34u, "MODE   : P2P",    LCD_WHITE, LCD_BLACK);
-        LCD_DrawString(4u, 50u, "PAYLOAD: 21 B",   LCD_WHITE, LCD_BLACK);
-        LCD_DrawString(4u,  72u, "-------------------", LCD_GRAY, LCD_BLACK);
-        LCD_DrawString(4u,  88u, "TX  :", LCD_WHITE, LCD_BLACK);
-        LCD_DrawString(4u, 104u, "OK  :", LCD_GREEN, LCD_BLACK);
-        LCD_DrawString(4u, 120u, "TMO :", LCD_YELLOW, LCD_BLACK);
-        LCD_DrawString(4u, 136u, "ERR :", LCD_RED,    LCD_BLACK);
-        LCD_DrawString(4u, 152u, "PER :", LCD_ORANGE, LCD_BLACK);
+        LCD_DrawString(4u, 34u, "MODE:P2P  PAYLOAD:21B",    LCD_WHITE, LCD_BLACK);
+        LCD_DrawString(4u, 52u, "------------------------", LCD_GRAY,  LCD_BLACK);
+        /* 정적 라벨 (ID 부분만 동적 업데이트) */
+        LCD_DrawString(4u,  70u, "TX(-):     0 / OK(-):     0 (  0.0%)", LCD_WHITE,  LCD_BLACK);
+        LCD_DrawString(4u,  90u, "TMO:    0/STA:    0/ERR:    0 ( 0.0%)", LCD_YELLOW, LCD_BLACK);
+        LCD_DrawString(4u, 110u, "--- UART1 Errors --------",             LCD_GRAY,   LCD_BLACK);
+        LCD_DrawString(4u, 128u, "PE:    0/FE:    0/NE:    0/ORE:    0",  LCD_CYAN,   LCD_BLACK);
+        LCD_DrawString(4u, 146u, "ACK:    --- ms",                         LCD_GREEN,  LCD_BLACK);
 
         for (;;)
         {
             const PLC_Stats_t *s = P2P_GetStats();
 
-            snprintf(buf, sizeof(buf), "TX  : %4lu / %4u",
-                     (unsigned long)s->tx_count, (unsigned)TEST_PACKET_COUNT);
-            LCD_DrawString(4u,  88u, buf, LCD_WHITE, LCD_BLACK);
+            float per_ok   = (s->tx_count > 0u)
+                             ? (float)s->rx_success / (float)s->tx_count * 100.0f
+                             : 0.0f;
+            float per_fail = (s->tx_count > 0u)
+                             ? (float)(s->rx_fail_timeout + s->rx_fail_wrong)
+                               / (float)s->tx_count * 100.0f
+                             : 0.0f;
 
-            snprintf(buf, sizeof(buf), "OK  : %4lu", (unsigned long)s->rx_success);
-            LCD_DrawString(4u, 104u, buf, LCD_GREEN, LCD_BLACK);
+            /* TX(id): nnnnn / OK(id): nnnnn (sss.s%) */
+            snprintf(buf, sizeof(buf), "TX(%c):%5lu / OK(%c):%5lu (%5.1f%%)",
+                     s->last_tx_id, (unsigned long)s->tx_count,
+                     s->last_rx_id, (unsigned long)s->rx_success,
+                     (double)per_ok);
+            LCD_DrawString(4u, 70u, buf, LCD_WHITE, LCD_BLACK);
 
-            snprintf(buf, sizeof(buf), "TMO : %4lu", (unsigned long)s->rx_fail_timeout);
-            LCD_DrawString(4u, 120u, buf, LCD_YELLOW, LCD_BLACK);
+            /* TMO: n / STA: n / ERR: n (f.f%) */
+            snprintf(buf, sizeof(buf), "TMO:%4lu/STA:%4lu/ERR:%4lu (%4.1f%%)",
+                     (unsigned long)s->rx_fail_timeout,
+                     (unsigned long)s->rx_stale,
+                     (unsigned long)s->rx_fail_wrong,
+                     (double)per_fail);
+            LCD_DrawString(4u, 90u, buf, LCD_YELLOW, LCD_BLACK);
 
-            snprintf(buf, sizeof(buf), "ERR : %4lu", (unsigned long)s->rx_fail_wrong);
-            LCD_DrawString(4u, 136u, buf, LCD_RED, LCD_BLACK);
+            /* PE / FE / NE / ORE */
+            snprintf(buf, sizeof(buf), "PE:%4lu/FE:%4lu/NE:%4lu/ORE:%4lu",
+                     (unsigned long)s->uart_pe, (unsigned long)s->uart_fe,
+                     (unsigned long)s->uart_ne, (unsigned long)s->uart_oe);
+            LCD_DrawString(4u, 128u, buf, LCD_CYAN, LCD_BLACK);
 
-            uint32_t per_int  = (uint32_t)s->per;
-            uint32_t per_frac = (uint32_t)((s->per - (float)per_int) * 100.0f);
-            snprintf(buf, sizeof(buf), "PER : %2lu.%02lu%%", (unsigned long)per_int, (unsigned long)per_frac);
-            LCD_DrawString(4u, 152u, buf, LCD_ORANGE, LCD_BLACK);
+            /* ACK RTT */
+            snprintf(buf, sizeof(buf), "ACK: %6lu ms", (unsigned long)s->last_ack_latency_ms);
+            LCD_DrawString(4u, 146u, buf, LCD_GREEN, LCD_BLACK);
 
             tx_thread_sleep(500u);
         }

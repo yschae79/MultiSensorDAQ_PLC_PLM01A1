@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stm32_plm01a1.h"
+#include "c_plc_appli.h"    /* P2P_UART1_ErrorInc */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -229,27 +230,14 @@ void USART1_IRQHandler(void)
   /* USER CODE BEGIN USART1_IRQn 0 */
   UART_HandleTypeDef *huart = &pUartPlmHandle;
   uint32_t tmp1, tmp2;
+  uint8_t  pe=0u, fe=0u, ne=0u, oe=0u;
 
-  /* UART 패리티 에러 클리어 */
-  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_PE))
-  {
-    __HAL_UART_CLEAR_PEFLAG(huart);
-  }
-  /* UART 프레임 에러 클리어 */
-  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_FE))
-  {
-    __HAL_UART_CLEAR_FEFLAG(huart);
-  }
-  /* UART 노이즈 에러 클리어 */
-  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_NE))
-  {
-    __HAL_UART_CLEAR_NEFLAG(huart);
-  }
-  /* UART 오버런 에러 클리어 */
-  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE))
-  {
-    __HAL_UART_CLEAR_OREFLAG(huart);
-  }
+  /* UART 에러 플래그 클리어 및 카운트 */
+  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_PE))  { __HAL_UART_CLEAR_PEFLAG(huart);  pe=1u; }
+  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_FE))  { __HAL_UART_CLEAR_FEFLAG(huart);  fe=1u; }
+  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_NE))  { __HAL_UART_CLEAR_NEFLAG(huart);  ne=1u; }
+  if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE)) { __HAL_UART_CLEAR_OREFLAG(huart); oe=1u; }
+  if (pe || fe || ne || oe) { P2P_UART1_ErrorInc(pe, fe, ne, oe); }
 
   tmp1 = __HAL_UART_GET_FLAG(huart, UART_FLAG_RXNE);
   tmp2 = __HAL_UART_GET_IT_SOURCE(huart, UART_IT_RXNE);
