@@ -45,7 +45,7 @@ typedef struct {
     uint32_t uart_ne;           /**< USART1 노이즈 에러 횟수 */
     uint32_t uart_oe;           /**< USART1 오버런 에러 횟수 */
     uint32_t last_ack_latency_ms; /**< 마지막 ACK 수신까지 걸린 시간 [ms] (TRIGGER 전송~ACK 수신) */
-    float    per;               /**< 패킷 에러율 [%] = (TMO+ERR)/TX*100 */
+    float    per;               /**< 성공률 [%] = rx_success / tx_count × 100 */
 } PLC_Stats_t;
 
 /* Exported constants --------------------------------------------------------*/

@@ -228,8 +228,7 @@ static void AppliMasterBoard(void)
         {
             s_stats.rx_fail_timeout++;
             if (s_stats.tx_count > 0u) {
-                s_stats.per = (float)(s_stats.rx_fail_timeout + s_stats.rx_fail_wrong)
-                              / (float)s_stats.tx_count * 100.0f;
+                s_stats.per = (float)s_stats.rx_success / (float)s_stats.tx_count * 100.0f;
             }
             printf("ACK Timeout - No ACK Received\r\n");
             continue;
@@ -262,8 +261,7 @@ static void AppliMasterBoard(void)
             printf("WRONG ACK Msg Received, ID: %c\r\n", aRcvBuffer[ACK_BUF_SIZE - 1]);
         }
         if (s_stats.tx_count > 0u) {
-            s_stats.per = (float)(s_stats.rx_fail_timeout + s_stats.rx_fail_wrong)
-                          / (float)s_stats.tx_count * 100.0f;
+            s_stats.per = (float)s_stats.rx_success / (float)s_stats.tx_count * 100.0f;
         }
         printf("PAYLOAD: %.*s\r\n\r\n", ACK_BUF_SIZE, (char *)aRcvBuffer);
 

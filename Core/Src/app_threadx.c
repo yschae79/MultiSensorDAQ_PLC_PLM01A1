@@ -187,11 +187,11 @@ static void LCD_Task_Entry(ULONG argument)
         LCD_DrawString(4u, 34u, "MODE:P2P  PAYLOAD:21B",    LCD_WHITE, LCD_BLACK);
         LCD_DrawString(4u, 52u, "------------------------", LCD_GRAY,  LCD_BLACK);
         /* 정적 라벨 (ID 부분만 동적 업데이트) */
-        LCD_DrawString(4u,  70u, "TX(-):     0 / OK(-):     0 (  0.0%)", LCD_WHITE,  LCD_BLACK);
-        LCD_DrawString(4u,  90u, "TMO:    0/STA:    0/ERR:    0 ( 0.0%)", LCD_YELLOW, LCD_BLACK);
+        // LCD_DrawString(4u,  70u, "TX(-):     0 / OK(-):     0 (  0.0%)", LCD_WHITE,  LCD_BLACK);
+        // LCD_DrawString(4u,  90u, "TMO:    0/STA:    0/ERR:    0 ( 0.0%)", LCD_YELLOW, LCD_BLACK);
         LCD_DrawString(4u, 110u, "--- UART1 Errors --------",             LCD_GRAY,   LCD_BLACK);
-        LCD_DrawString(4u, 128u, "PE:    0/FE:    0/NE:    0/ORE:    0",  LCD_CYAN,   LCD_BLACK);
-        LCD_DrawString(4u, 146u, "ACK:    --- ms",                         LCD_GREEN,  LCD_BLACK);
+        // LCD_DrawString(4u, 128u, "PE:    0/FE:    0/NE:    0/ORE:    0",  LCD_CYAN,   LCD_BLACK);
+        // LCD_DrawString(4u, 146u, "ACK:    --- ms",                         LCD_GREEN,  LCD_BLACK);
 
         for (;;)
         {
@@ -205,15 +205,15 @@ static void LCD_Task_Entry(ULONG argument)
                                / (float)s->tx_count * 100.0f
                              : 0.0f;
 
-            /* TX(id): nnnnn / OK(id): nnnnn (sss.s%) */
-            snprintf(buf, sizeof(buf), "TX(%c):%5lu / OK(%c):%5lu (%5.1f%%)",
+            /* TX(id):nnnnn/OK(id):nnnnn(sss.sss%) */
+            snprintf(buf, sizeof(buf), "TX(%c):%5lu/OK(%c):%5lu(%6.3f%%)",
                      s->last_tx_id, (unsigned long)s->tx_count,
                      s->last_rx_id, (unsigned long)s->rx_success,
                      (double)per_ok);
             LCD_DrawString(4u, 70u, buf, LCD_WHITE, LCD_BLACK);
 
-            /* TMO: n / STA: n / ERR: n (f.f%) */
-            snprintf(buf, sizeof(buf), "TMO:%4lu/STA:%4lu/ERR:%4lu (%4.1f%%)",
+            /* TMO:nnnn/STA:nnnn/ERR:nnnn(sss.sss%) */
+            snprintf(buf, sizeof(buf), "TMO:%4lu/STA:%4lu/ERR:%4lu(%6.3f%%)",
                      (unsigned long)s->rx_fail_timeout,
                      (unsigned long)s->rx_stale,
                      (unsigned long)s->rx_fail_wrong,
