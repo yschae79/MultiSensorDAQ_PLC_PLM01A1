@@ -23,11 +23,19 @@
 #endif
 
 /**
- * @brief  링버퍼 크기 (바이트)
- * @note   링버퍼가 가득 차면 오버플로우 정책에 따라 동작
+ * @brief  디버그 메시지 큐 사이즈
+ * @note   큐에 쌓을 수 있는 최대 메시지(포인터) 개수
  */
-#ifndef DEBUG_TX_BUF_SIZE
-#define DEBUG_TX_BUF_SIZE       1024u
+#ifndef DEBUG_QUEUE_SIZE
+#define DEBUG_QUEUE_SIZE        16u
+#endif
+
+/**
+ * @brief  동적 할당용 Byte Pool 크기 (바이트)
+ * @note   가장 큰 메시지 크기 및 동시 다발적 출력량을 고려하여 설정
+ */
+#ifndef DEBUG_BYTE_POOL_SIZE
+#define DEBUG_BYTE_POOL_SIZE    2048u
 #endif
 
 /**
