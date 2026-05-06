@@ -320,7 +320,7 @@ static void AppliSlaveBoard(void)
                     break;
                 }
             }
-            tx_thread_sleep(200);
+            tx_thread_sleep(1);
         } while (RxFrame == NULL);
 
         /* 페이로드 추출 */

@@ -50,8 +50,8 @@ typedef struct {
 
 /* Exported constants --------------------------------------------------------*/
 #define TEST_PAYLOAD_SIZE    21u    /**< 페이로드 크기 (최대 DL_DATALEN_MAX=242) */
-#define ACK_POLL_COUNT       25u    /**< ACK 폴링 최대 횟수 (25 × 200ms = 5,000ms) */
-#define ACK_POLL_INTERVAL_MS 200u   /**< ACK 폴링 간격 [ms] */
+#define ACK_POLL_COUNT       5000u  /**< ACK 폴링 최대 횟수 (5000 × 1ms = 5,000ms) */
+#define ACK_POLL_INTERVAL_MS 1u     /**< ACK 폴링 간격 [ms] (TX_TIMER_TICKS_PER_SECOND=1000 → 1틱=1ms) */
 
 /* Exported variables --------------------------------------------------------*/
 /**

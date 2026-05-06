@@ -91,12 +91,14 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
                          5u, 5u, TX_NO_TIME_SLICE, TX_AUTO_START);
   if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
 
-  /* LiveWatch 태스크 생성 (우선순위 8, 512B 스택) — 1초 주기 printf 전용 */
-  ret = tx_byte_allocate(byte_pool, &p_stack, 512u, TX_NO_WAIT);
+  /* LiveWatch 태스크 생성 (우선순위 8, 1024B 스택) — 1초 주기 printf 전용
+   * 512B → 1024B: printf→_write→tx_byte_allocate 호출 체인 + Cortex-M4
+   * 컨텍스트 저장(~100B) 합산 시 512B 스택 오버플로우로 메모리 오염 발생 */
+  ret = tx_byte_allocate(byte_pool, &p_stack, 1024u, TX_NO_WAIT);
   if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
   static TX_THREAD s_liveWatchTask;
   ret = tx_thread_create(&s_liveWatchTask, "LiveWatch Task", LiveWatch_Task_Entry, 0u,
-                         p_stack, 512u,
+                         p_stack, 1024u,
                          8u, 8u, TX_NO_TIME_SLICE, TX_AUTO_START);
   if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
 
@@ -135,7 +137,7 @@ static void LiveWatch_Task_Entry(ULONG argument)
     (void)argument;
     for (;;)
     {
-        printf("[LW] g_livewatch_val = %lu\n", (unsigned long)g_livewatch_val);
+        // printf("[LW] g_livewatch_val = %lu\n", (unsigned long)g_livewatch_val);
         tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);  /* 1000 tick = 1초 (TX_TIMER_TICKS_PER_SECOND=1000) */
     }
 }

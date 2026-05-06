@@ -61,6 +61,25 @@
             }
         },
         {
+            "label": "Build (Debug)",
+            "type": "shell",
+            "command": "cube-cmake",
+            "args": [
+                "--build",
+                "--preset",
+                "Debug"
+            ],
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "options": {
+                "statusbar": {
+                    "label": "$(tools) Build Debug",
+                    "color": "#E5C07B",
+                    "detail": "Debug 빌드 (-Og -g3)"
+                }
+            }
+        },
+        {
             "label": "Clean (Release)",
             "type": "shell",
             "command": "cube-cmake",
