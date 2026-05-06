@@ -53,6 +53,14 @@ typedef struct {
 #define ACK_POLL_COUNT       25u    /**< ACK 폴링 최대 횟수 (25 × 200ms = 5,000ms) */
 #define ACK_POLL_INTERVAL_MS 200u   /**< ACK 폴링 간격 [ms] */
 
+/* Exported variables --------------------------------------------------------*/
+/**
+ * @brief  LiveWatch 실험용 변수 — STM32CubeIDE Live Expressions 창에서
+ *         런타임 중 값을 변경하면 다음 printf 주기(1초)에 반영됨.
+ * @note   volatile: 컴파일러 최적화로 인한 캐싱 방지
+ */
+extern volatile uint32_t g_livewatch_val;
+
 /* Exported function prototypes ----------------------------------------------*/
 void P2P_Init(void);
 void P2P_Process(void);

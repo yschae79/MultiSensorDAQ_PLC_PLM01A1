@@ -32,6 +32,13 @@ static SM_State_t SM_State;
 /** @brief PLC 신뢰성 테스트 통계 */
 static PLC_Stats_t s_stats;
 
+/**
+ * @brief  LiveWatch 실험용 변수
+ * @note   STM32CubeIDE Live Expressions 창에서 런타임 중 자유롭게 값 변경 가능.
+ *         1초마다 printf로 출력되어 변경 반영 확인 가능.
+ */
+volatile uint32_t g_livewatch_val = 0u;
+
 
 
 /* Private function prototypes -----------------------------------------------*/

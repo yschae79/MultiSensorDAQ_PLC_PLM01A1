@@ -54,6 +54,7 @@
 /* USER CODE BEGIN PFP */
 static void PLC_Task_Entry(ULONG argument);
 static void LCD_Task_Entry(ULONG argument);
+static void LiveWatch_Task_Entry(ULONG argument);
 /* USER CODE END PFP */
 
 /**
@@ -90,6 +91,15 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
                          5u, 5u, TX_NO_TIME_SLICE, TX_AUTO_START);
   if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
 
+  /* LiveWatch 태스크 생성 (우선순위 8, 512B 스택) — 1초 주기 printf 전용 */
+  ret = tx_byte_allocate(byte_pool, &p_stack, 512u, TX_NO_WAIT);
+  if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
+  static TX_THREAD s_liveWatchTask;
+  ret = tx_thread_create(&s_liveWatchTask, "LiveWatch Task", LiveWatch_Task_Entry, 0u,
+                         p_stack, 512u,
+                         8u, 8u, TX_NO_TIME_SLICE, TX_AUTO_START);
+  if (ret != TX_SUCCESS) { Error_Handler(); return ret; }
+
   /* USER CODE END App_ThreadX_Init */
 
   return ret;
@@ -114,6 +124,21 @@ void MX_ThreadX_Init(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+/**
+ * @brief LiveWatch 실험용 태스크 — 1초마다 g_livewatch_val 출력
+ * @note  STM32CubeIDE Live Expressions 창에서 g_livewatch_val 값을 변경하면
+ *        다음 출력 주기에 반영됨. 실험 완료 후 태스크 삭제 가능.
+ */
+static void LiveWatch_Task_Entry(ULONG argument)
+{
+    (void)argument;
+    for (;;)
+    {
+        printf("[LW] g_livewatch_val = %lu\n", (unsigned long)g_livewatch_val);
+        tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);  /* 1000 tick = 1초 (TX_TIMER_TICKS_PER_SECOND=1000) */
+    }
+}
 
 /**
  * @brief PLC 태스크 진입 함수
