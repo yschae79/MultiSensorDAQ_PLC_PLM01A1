@@ -31,7 +31,7 @@ static uint8_t s_pool_memory[DEBUG_BYTE_POOL_SIZE];
 static uint8_t s_debug_stack[DEBUG_STACK_SIZE];
 static ULONG   s_queue_memory[DEBUG_QUEUE_SIZE * 2]; /* 포인터 1, 길이 1 = 총 2 ULONG */
 
-static uint8_t s_initDone = 0;
+static volatile uint8_t s_initDone = 0;  /* ISR(Debug_TxCpltHandler)에서도 읽으므로 volatile 필수 */
 
 /* ----------------------- 오버플로우 정책 설정 --------------------------- */
 #if (DEBUG_OVERFLOW_BLOCK == 1)
@@ -59,15 +59,21 @@ static void Debug_Task_Entry(ULONG argument)
             uint8_t *ptr = (uint8_t *)msg[0];
             uint32_t len = (uint32_t)msg[1];
 
-            /* 2. DMA 전송 시작 */
-            HAL_UART_Transmit_DMA(&DEBUG_UART_INSTANCE, ptr, (uint16_t)len);
+            /* 2. DMA 전송 시작 — HAL_BUSY 등 실패 시 이벤트가 발생하지 않으므로
+             *    반환값 확인 후 실패 시 메모리 즉시 해제하고 다음 메시지로 진행 */
+            if (HAL_UART_Transmit_DMA(&DEBUG_UART_INSTANCE, ptr, (uint16_t)len) != HAL_OK)
+            {
+                tx_byte_release(ptr);
+            }
+            else
+            {
+                /* 3. DMA 완료 대기 */
+                tx_event_flags_get(&s_debug_events, DEBUG_EVENT_TX_DONE,
+                                   TX_AND_CLEAR, &actual_events, TX_WAIT_FOREVER);
 
-            /* 3. DMA 완료 대기 */
-            tx_event_flags_get(&s_debug_events, DEBUG_EVENT_TX_DONE, 
-                               TX_AND_CLEAR, &actual_events, TX_WAIT_FOREVER);
-
-            /* 4. 메모리 해제 */
-            tx_byte_release(ptr);
+                /* 4. 메모리 해제 */
+                tx_byte_release(ptr);
+            }
         }
     }
 }
@@ -120,7 +126,7 @@ int _write(int file, char *ptr, int len)
     (void)file;
 
     if (len <= 0 || !s_initDone) return len;
-    
+
     /* 스케줄러 구동 전이거나 ISR 컨텍스트라면 블로킹 방식으로 즉시 출력하여 로그 유실 방지 */
     if (tx_thread_identify() == TX_NULL) {
         HAL_UART_Transmit(&DEBUG_UART_INSTANCE, (uint8_t*)ptr, len, HAL_MAX_DELAY);
@@ -128,7 +134,7 @@ int _write(int file, char *ptr, int len)
     }
 
     uint8_t *mem;
-    
+
     /* 1. 메모리 풀에서 공간 할당 */
     if (tx_byte_allocate(&s_debug_pool, (VOID **)&mem, len, ALLOC_WAIT) != TX_SUCCESS)
     {
@@ -156,15 +162,23 @@ int _write(int file, char *ptr, int len)
 void Debug_SendBinary(const uint8_t *data, uint32_t len)
 {
     if (data == NULL || len == 0u || !s_initDone) return;
-    
-    /* 스케줄러 구동 전이거나 ISR 컨텍스트라면 블로킹 방식으로 즉시 출력 */
+
+    /* 스케줄러 구동 전이거나 ISR 컨텍스트라면 블로킹 방식으로 즉시 출력.
+     * len이 uint16_t 범위(65535)를 초과할 수 있으므로 청크 단위로 분할 전송. */
     if (tx_thread_identify() == TX_NULL) {
-        HAL_UART_Transmit(&DEBUG_UART_INSTANCE, (uint8_t*)data, len, HAL_MAX_DELAY);
+        uint32_t offset = 0;
+        while (offset < len) {
+            uint32_t toSend = len - offset;
+            if (toSend > 0xFFFFu) { toSend = 0xFFFFu; }
+            HAL_UART_Transmit(&DEBUG_UART_INSTANCE, (uint8_t*)data + offset,
+                              (uint16_t)toSend, HAL_MAX_DELAY);
+            offset += toSend;
+        }
         return;
     }
 
     uint32_t offset = 0;
-    
+
     /* Pool의 최대 할당 가능한 크기는 약간의 오버헤드를 제외한 사이즈. 안전하게 절반씩 전송. */
     const uint32_t MAX_CHUNK = DEBUG_BYTE_POOL_SIZE / 2;
 

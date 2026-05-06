@@ -2,8 +2,11 @@
   ******************************************************************************
   * @file           : c_debug.h
   * @brief          : 비동기 DMA 기반 디버그 printf
-  * @details        : FreeRTOS 뮤텍스로 보호되는 링버퍼 + DMA 전송 방식.
-  *                   모든 태스크에서 printf() 호출 시 경쟁상태 없이 안전하게 출력.
+  * @details        : ThreadX Message Queue + Byte Pool 방식으로 구현.
+  *                   syscalls.c의 weak _write()를 재정의하여 printf() 호출 시
+  *                   Byte Pool에 메시지를 할당한 뒤 Queue에 전송하면,
+  *                   백그라운드 Debug Task가 DMA로 출력을 처리함.
+  *                   호출 태스크는 Blocking/Mutex 경합 없이 즉시 리턴됨.
   *                   헤더 매크로로 UART 인스턴스, 버퍼 크기, 오버플로우 정책 설정 가능.
   ******************************************************************************
   */
