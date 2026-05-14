@@ -342,9 +342,9 @@ PLM01A1 내부 커플링 회로만으로 전원선 통신이 가능한지 먼저
 
 ```
 [기존 배선 - PLM 직결 (기준)]
-  Master CN2 VCC ← PSU A (독립)
-  Slave  CN2 VCC ← PSU B (독립)
-  Master PLM CN1 ──────────── Slave PLM CN1
+  PSU (12V) ──┬── Master CN2 VCC
+              └── Slave  CN2 VCC   ← 1대 공유
+  Master PLM CN1 ──────────────── Slave PLM CN1
 
 [선행 실험 배선 - VCC 경유 루프]
   PSU (12V) ──→ Slave CN2 VCC ──→ Slave PLM CN1
@@ -375,17 +375,20 @@ PLM01A1 내부 커플링 회로만으로 전원선 통신이 가능한지 먼저
 | TX/RX 카운터 | 일치 | **일치** | 동일 |
 | 변조 방식 | BPSKCOD | BPSKCOD | — |
 
-**RTT +48ms 증가 원인**: PLM01A1 내부 커플링 회로를 2회 추가 통과 (루프 양단 각 1단).
-커플링 1단당 대역통과 필터 위상 지연이 누적됨.
+**RTT +48ms 증가 원인**: L_LINE(직렬 인덕터) 없이 PLM CN1이 12V 버스에 직결되어
+PSU 출력 커패시터(~1000μF)가 버스에 병렬 연결됨.
 
-$$\Delta T_{RTT} \approx 2 \times 24\text{ ms} \approx +48\text{ ms}$$
+$$X_{C_{PSU}} = \frac{1}{2\pi \times 110\text{kHz} \times 1000\mu\text{F}} \approx 1.4\text{ m}\Omega \approx \text{단락}$$
+
+PSU 커패시터가 110kHz PLC 신호를 대부분 흡수 → SNR 저하 → ST7580 복조 처리 지연 누적.
+PLM 직결 배선에서는 PSU가 신호 경로에 개입하지 않아 이 부하가 없었음.
 
 ### 8.4 결론 및 시사점
 
 1. ✅ **전원선 PLC 통신 가능 확인**: 외부 커플링 없이 PLM01A1 내부 커플링만으로
    12V 전원선 PLC 통신이 동작함 → 제품화 가능성 검증 완료.
-2. ✅ **RTT 기준값 확보**: 직결 ~100ms 대비 전원선 경유 ~148ms
-   → **커플링 1단 추가당 약 +24ms**.
+2. ✅ **RTT 기준값 확보**: 직결 ~100ms 대비 전원선 경유 ~148ms (+48ms).
+   → L_LINE 부재 시 PSU 커패시터 신호 흡수 효과. **L_LINE 추가 시 해소 예상**.
 3. ⚠️ **초기화 안정성 문제**: 최초 전원 인가 시 실패 현상 발생.
    `P2P_Init()` 내 대기 시간 연장 또는 ST7580 재시도 로직 보강 검토 필요.
 4. ⚠️ **D4 TVS 파손 위험 내재**: 본 선행 실험은 보드 파손 위험을 감수한 것.
@@ -400,6 +403,28 @@ $$\Delta T_{RTT} \approx 2 \times 24\text{ ms} \approx +48\text{ ms}$$
 | 외부 C_COUPLE 필수 (DC 차단) | — | 기술적 필수 조건 확정 |
 | 커플링 회로 내압 정격 | C ≥50V, TVS ≥15V | 12V 버스 직결 대응 |
 | BPSKCOD 전원선 경유 성공 | 100% PER | 제품화 근거 확보 |
+| D4 교체 권고 (Phase 2) | SM6T6V8CA → SM6T15CA | 12V 버스 standoff 확보 |
+
+### 8.6 소비 전력 변화 및 D4 발열
+
+> 이전 배선(PLM 직결)과 신규 배선(VCC 경유 루프) 모두 **PSU 1대로 Master+Slave 공유** 공급.
+> 따라서 전력 증가는 보드 추가가 아닌 **D4 TVS 연속 도통**이 원인.
+
+| 상태 | PLM 직결 (기준) | VCC 경유 루프 | 변화 |
+|------|----------------|--------------|------|
+| 대기 (idle) | 0.33A | 0.44A | **+0.11A (+1.32W)** |
+| 활성 (LCD 업데이트 중) | 0.73A | 0.93A | **+0.20A (+2.4W)** |
+
+**원인**: D4 TVS(SM6T6V8CA, 클램프 ~6.8V)가 12V 인가로 연속 도통.
+
+$$I_{D4} \approx \frac{12\text{V} - 6.8\text{V}}{R_{series}} \approx 110\text{~}150\text{ mA per board}$$
+
+**발열 확인**: 실험 중 D4 위치 손가락 접촉(약 10초) → **표면 약 50~60°C** 확인.
+SM6T6V8CA 최대 접합 온도(150°C) 이내이나, DC 연속 도통은 설계 의도 외 동작으로
+소자 열화 및 서지 보호 기능 저하 가능성 있음.
+
+> D4 TVS는 **과도 전압 흡수 전용** 소자입니다. Phase 2 PCB에서는
+> 외부 C_COUPLE로 DC를 차단하여 D4에 12V가 인가되지 않도록 설계합니다.
 
 ---
 
