@@ -3,7 +3,7 @@
 * @file    ST7580_Serial.h
 * @author  CLABS
 * @version 1.1.0
-* @date    18-Sept-2017 
+* @date    18-Sept-2017
 * @brief   ST7580 device specific interface functions and constants
 ******************************************************************************
 * @attention
@@ -50,7 +50,7 @@
  extern "C" {
 #endif
 
-	 
+
 
 /**
  * @addtogroup ST7580_Libraries
@@ -64,8 +64,8 @@
  * @details See the file <i>@ref ST7580_Serial.h</i> for more details.
  * @{
  */
-	 
-	  
+
+
  /**
  * @defgroup Serial_Exported_Constants               Serial Exported Constants
  * @{
@@ -90,7 +90,7 @@
 #define FREQUENCY_SET								1
 #define GAIN_SELECTOR								0
 
-#define FRAME_MODULATION						BPSKCOD
+#define FRAME_MODULATION						BPSKCODPEAKAV
 #define ZERO_CROSS_SYNC							0
 
 #if CUSTOM_MIB_FREQUENCY
@@ -100,7 +100,7 @@
 #endif
 
 #if GAIN_SELECTOR
-	#define	TXGAIN										0													
+	#define	TXGAIN										0
 #endif
 /******************************************************************************/
 
@@ -155,7 +155,7 @@
  */
 #define ST7580_ACK          				0x06 /* ST7580 ACK */
 #define ST7580_NAK          				0x15 /* ST7580 NACK */
-#define BUSY_MASK										0x06 
+#define BUSY_MASK										0x06
 
 /**
  * @brief  Start of frames codes
@@ -206,7 +206,7 @@
 
 #define CMD_SYNTAX_ERR      				0x36	/* Syntax error command code */
 
-/* 
+/*
  * Returns true of the given command code is an indication, false otherwise
  */
 #define IS_INDICATION(CMD)					((CMD == CMD_RESET_IND) || \
@@ -233,9 +233,9 @@
 #define MIB_PHY_DATA        				0x06	/* PHY Data MIB */
 #define MIB_DL_DATA         				0x07	/* DL Data MIB */
 #define MIB_SS_DATA         				0x08	/* SS Data MIB */
-#define MIB_HOST_IF_TOUT    				0x09	/* Host interface timeout MIB */	
+#define MIB_HOST_IF_TOUT    				0x09	/* Host interface timeout MIB */
 #define MIB_FW_VERSION      				0x0A	/* Firmware version MIB */
- 
+
 #define ST7580_MOD_BPSK         		(0 << 4)	/* B-PSK modulation */
 #define ST7580_MOD_QPSK         		(1 << 4)	/* Q-PSK modulation */
 #define ST7580_MOD_8PSK         		(2 << 4)	/* 8-PSK modulation */
@@ -248,7 +248,7 @@
 /**
  *@}
  */
- 
+
 /**
  * @defgroup Serial_Exported_Macros            Serial Exported Macros
  * @{
@@ -331,7 +331,7 @@ typedef struct
 } ST7580Frame;
 
 
-/** 
+/**
  * @brief Frame Queue structure
  */
 typedef struct
@@ -341,7 +341,7 @@ typedef struct
 	volatile uint8_t rd_idx;		/* The queue read index */
 } ST7580FrameQueue;
 
-/** 
+/**
  * @brief ST7580 Channel structure
  */
 typedef struct
@@ -359,8 +359,8 @@ typedef struct
 	volatile Timeout timeout[N_TIMEOUTS];	/* timeouts (milliseconds) */
   ST7580Frame tx_frame;				/* Transmit frame */
   ST7580Frame confirm_frame;		/* Received confirm frame */
-	ST7580FrameQueue ind_frames;/* Incoming indication frames */	
-	
+	ST7580FrameQueue ind_frames;/* Incoming indication frames */
+
 } ST7580Channel;
 
 extern const uint8_t phy_config[14];

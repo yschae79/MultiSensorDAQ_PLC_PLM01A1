@@ -1,102 +1,116 @@
 {
+    // 표준 STM32 빌드/플래시 태스크
+    // statusbar 노출: Build+Flash(R), Build+Flash(D), Clean(R), Clean(D) — 4개만
+    // Rebuild + Flash (R) 는 Shift+F6 단축키로 실행 (statusbar 숨김)
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build (Release)",
+            "label": "Build (R)",
             "type": "shell",
             "command": "cube-cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "Release"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": "$gcc",
-            "options": {
-                "statusbar": {
-                    "label": "$(tools) Build",
-                    "color": "#98C379",
-                    "detail": "Release 빌드"
-                }
-            }
+            "args": ["--build", "--preset", "Release"],
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": [],
+            "options": { "statusbar": { "hide": true } }
         },
         {
-            "label": "Flash (Release)",
+            "label": "Build (D)",
+            "type": "shell",
+            "command": "cube-cmake",
+            "args": ["--build", "--preset", "Debug"],
+            "group": "build",
+            "problemMatcher": [],
+            "options": { "statusbar": { "hide": true } }
+        },
+        {
+            "label": "Flash (R)",
             "type": "process",
             "command": "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
             "args": [
-                "-c",
-                "port=SWD",
-                "-w",
-                "${workspaceFolder}/build/Release/MultiSensorDAQ_PLC_PLM01A1.elf",
-                "-v",
-                "-rst"
+                "-c", "port=SWD",
+                "-w", "${workspaceFolder}/build/Release/MultiSensorDAQ_PLC_PLM01A1.elf",
+                "-v", "-rst"
             ],
             "problemMatcher": [],
-            "options": {
-                "statusbar": {
-                    "label": "$(arrow-down) Flash",
-                    "color": "#61AFEF",
-                    "detail": "SWD로 ELF 플래싱"
-                }
-            }
+            "options": { "statusbar": { "hide": true } }
         },
         {
-            "label": "Build + Flash",
-            "dependsOn": [
-                "Build (Release)",
-                "Flash (Release)"
+            "label": "Flash (D)",
+            "type": "process",
+            "command": "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
+            "args": [
+                "-c", "port=SWD",
+                "-w", "${workspaceFolder}/build/Debug/MultiSensorDAQ_PLC_PLM01A1.elf",
+                "-v", "-rst"
             ],
+            "problemMatcher": [],
+            "options": { "statusbar": { "hide": true } }
+        },
+        {
+            "label": "Build + Flash (R)",
+            "dependsOn": ["Build (R)", "Flash (R)"],
             "dependsOrder": "sequence",
             "problemMatcher": [],
             "options": {
                 "statusbar": {
-                    "label": "$(rocket) Build+Flash",
+                    "label": "$(rocket) Build+Flash R",
                     "color": "#89D185",
                     "detail": "Release 빌드 후 SWD 플래시"
                 }
             }
         },
         {
-            "label": "Build (Debug)",
-            "type": "shell",
-            "command": "cube-cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "Debug"
-            ],
-            "group": "build",
-            "problemMatcher": "$gcc",
+            "label": "Build + Flash (D)",
+            "dependsOn": ["Build (D)", "Flash (D)"],
+            "dependsOrder": "sequence",
+            "problemMatcher": [],
             "options": {
                 "statusbar": {
-                    "label": "$(tools) Build Debug",
+                    "label": "$(rocket) Build+Flash D",
                     "color": "#E5C07B",
-                    "detail": "Debug 빌드 (-Og -g3)"
+                    "detail": "Debug 빌드 후 SWD 플래시"
                 }
             }
         },
         {
-            "label": "Clean (Release)",
+            "label": "Rebuild + Flash (R)",
+            "dependsOn": ["Clean (R)", "Build (R)", "Flash (R)"],
+            "dependsOrder": "sequence",
+            "problemMatcher": [],
+            "options": { "statusbar": { "hide": true } }
+        },
+        {
+            "label": "Rebuild + Flash (D)",
+            "dependsOn": ["Clean (D)", "Build (D)", "Flash (D)"],
+            "dependsOrder": "sequence",
+            "problemMatcher": [],
+            "options": { "statusbar": { "hide": true } }
+        },
+        {
+            "label": "Clean (R)",
             "type": "shell",
             "command": "cube-cmake",
-            "args": [
-                "--build",
-                "--preset",
-                "Release",
-                "--",
-                "-t",
-                "clean"
-            ],
+            "args": ["--build", "--preset", "Release", "--", "-t", "clean"],
             "problemMatcher": [],
             "options": {
                 "statusbar": {
-                    "label": "$(trash) Clean",
+                    "label": "$(trash) Clean R",
                     "color": "#E06C75",
                     "detail": "Release 빌드 클린"
+                }
+            }
+        },
+        {
+            "label": "Clean (D)",
+            "type": "shell",
+            "command": "cube-cmake",
+            "args": ["--build", "--preset", "Debug", "--", "-t", "clean"],
+            "problemMatcher": [],
+            "options": {
+                "statusbar": {
+                    "label": "$(trash) Clean D",
+                    "color": "#E06C75",
+                    "detail": "Debug 빌드 클린"
                 }
             }
         }
